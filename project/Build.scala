@@ -1,3 +1,4 @@
+import bintray.BintrayKeys._
 import com.typesafe.sbt.SbtGit.GitKeys._
 import sbt.Keys._
 import sbt._
@@ -20,35 +21,7 @@ object Build extends sbt.Build {
     .settings(publishSettings: _*)
 
   lazy val publishSettings = Seq(
-    publishMavenStyle := true,
-    publishTo := {
-      val nexus = "https://oss.sonatype.org/"
-      if (isSnapshot.value)
-        Some("snapshots" at nexus + "content/repositories/snapshots")
-      else
-        Some("releases"  at nexus + "service/local/staging/deploy/maven2")
-    },
-    credentials += Credentials(Path.userHome / ".ivy2" / ".credentials"),
-    pomExtra := mavenInfos)
-
-  lazy val mavenInfos = {
-    <url>https://github.com/choffmeister/kamon-influxdb</url>
-    <licenses>
-      <license>
-        <name>MIT</name>
-        <url>http://opensource.org/licenses/MIT</url>
-      </license>
-    </licenses>
-    <scm>
-      <url>github.com/choffmeister/kamon-influxdb.git</url>
-      <connection>scm:git:github.com/choffmeister/kamon-influxdb.git</connection>
-      <developerConnection>scm:git:git@github.com:choffmeister/kamon-influxdb.git</developerConnection>
-    </scm>
-    <developers>
-      <developer>
-        <id>choffmeister</id>
-        <name>Christian Hoffmeister</name>
-        <url>http://choffmeister.de/</url>
-      </developer>
-    </developers> }
+    licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
+    bintrayReleaseOnPublish in ThisBuild := false
+  )
 }

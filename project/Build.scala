@@ -12,7 +12,9 @@ object Build extends sbt.Build {
       scalacOptions ++= Seq("-encoding", "utf8", "-deprecation", "-feature"),
       libraryDependencies ++= Seq(
         "com.typesafe.akka" %% "akka-actor" % "2.4.3",
-        "io.kamon" %% "kamon-core" % "0.5.2"
+        "com.typesafe.akka" %% "akka-testkit" % "2.4.3" % "test",
+        "io.kamon" %% "kamon-core" % "0.5.2",
+        "org.scalatest" %% "scalatest" % "2.2.6" % "test"
       )
     )
     .settings(publishSettings: _*)

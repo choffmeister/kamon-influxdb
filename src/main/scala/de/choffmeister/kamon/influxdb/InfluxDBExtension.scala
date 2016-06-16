@@ -1,5 +1,8 @@
 package de.choffmeister.kamon.influxdb
 
+import java.lang.management.ManagementFactory
+import java.net.InetSocketAddress
+
 import akka.actor.{ActorRef, ExtendedActorSystem, Extension, ExtensionId, ExtensionIdProvider}
 import akka.event.Logging
 import com.typesafe.config.Config
@@ -41,10 +44,18 @@ class InfluxDBExtension(system: ExtendedActorSystem) extends Kamon.Extension {
   def buildMetricsListener(tickInterval: FiniteDuration, flushInterval: FiniteDuration, config: Config): ActorRef = {
     assert(flushInterval >= tickInterval, "InfluxDB flush-interval needs to be equal or greater to the tick-interval")
 
+    val address = new InetSocketAddress(influxDBConfig.getString("hostname"), influxDBConfig.getInt("port"))
+    val tags = new RichConfig(influxDBConfig).getStringMap("tags") match {
+      case map if !map.contains("host") =>
+        map ++ Map("host" -> ManagementFactory.getRuntimeMXBean.getName.split('@')(1))
+      case map =>
+        map
+    }
+
     val metricsSender = system.actorOf(InfluxDBMetricsSender.props(
-      influxDBConfig.getString("hostname"),
-      influxDBConfig.getInt("port"),
-      maxPacketSizeInBytes), "influxdb-metrics-sender")
+      address,
+      maxPacketSizeInBytes,
+      tags), "influxdb-metrics-sender")
 
     if (flushInterval == tickInterval) {
       // No need to buffer the metrics, let's go straight to the metrics sender.

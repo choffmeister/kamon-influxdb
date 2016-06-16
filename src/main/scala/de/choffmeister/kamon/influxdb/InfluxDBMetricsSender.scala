@@ -1,6 +1,5 @@
 package de.choffmeister.kamon.influxdb
 
-import java.lang.management.ManagementFactory
 import java.net.InetSocketAddress
 import java.text.{DecimalFormat, DecimalFormatSymbols}
 import java.util.Locale
@@ -11,10 +10,9 @@ import akka.util.ByteString
 import kamon.metric.SubscriptionsDispatcher.TickMetricSnapshot
 import kamon.metric.instrument.{Counter, Histogram}
 
-class InfluxDBMetricsSender(influxDBHost: String, influxDBPort: Int, maxPacketSizeInBytes: Long) extends Actor with UdpExtensionProvider {
+class InfluxDBMetricsSender(influxDBAddress: InetSocketAddress, maxPacketSizeInBytes: Long, tags: Map[String, String]) extends Actor with UdpExtensionProvider {
   import context.system
 
-  val hostName = ManagementFactory.getRuntimeMXBean.getName.split('@')(1)
   def now = (System.currentTimeMillis() / 1000L) * 1000000000L
 
   def escape(s: String) = s.flatMap {
@@ -22,8 +20,6 @@ class InfluxDBMetricsSender(influxDBHost: String, influxDBPort: Int, maxPacketSi
     case ',' => '\\' :: ',' :: Nil
     case c => c :: Nil
   }.mkString
-
-  def newSocketAddress = new InetSocketAddress(influxDBHost, influxDBPort)
 
   udpExtension ! Udp.SimpleSender
 
@@ -37,7 +33,7 @@ class InfluxDBMetricsSender(influxDBHost: String, influxDBPort: Int, maxPacketSi
   }
 
   def writeMetricsToRemote(tick: TickMetricSnapshot, udpSender: ActorRef): Unit = {
-    val packetBuilder = new MetricDataPacketBuilder(maxPacketSizeInBytes, udpSender, newSocketAddress)
+    val packetBuilder = new MetricDataPacketBuilder(maxPacketSizeInBytes, udpSender, influxDBAddress)
 
     for (
       (entity, snapshot) <- tick.metrics;
@@ -45,7 +41,7 @@ class InfluxDBMetricsSender(influxDBHost: String, influxDBPort: Int, maxPacketSi
     ) {
       val timestamp = now
 
-      val baseTags = Map("host" -> hostName) ++ entity.tags.map { case (key, value) => escape(key) -> value }
+      val baseTags = tags ++ entity.tags.map { case (key, value) => escape(key) -> value }
       val (baseName, customTags: Map[String, String]) = entity.category match {
         case "counter" | "histogram" =>
           (escape(entity.name), Map.empty)
@@ -83,8 +79,8 @@ class InfluxDBMetricsSender(influxDBHost: String, influxDBPort: Int, maxPacketSi
 }
 
 object InfluxDBMetricsSender {
-  def props(influxDBHost: String, influxDBPort: Int, maxPacketSize: Long): Props =
-    Props(new InfluxDBMetricsSender(influxDBHost, influxDBPort, maxPacketSize))
+  def props(influxDBAddress: InetSocketAddress, maxPacketSize: Long, tags: Map[String, String]): Props =
+    Props(new InfluxDBMetricsSender(influxDBAddress, maxPacketSize, tags))
 }
 
 trait UdpExtensionProvider {
